@@ -24,7 +24,7 @@ import cpp.whisper.struct.whisper_full_params;
  * @author arliweng@outlook.com
  * @see https://github.com/ggml-org/whisper.cpp
  * @see https://github.com/java-native-access/jna
- * @since JAVA SE 7
+ * @since Java 7
  */
 public class WhisperCJ implements Closeable {
 	/**
@@ -82,6 +82,56 @@ public class WhisperCJ implements Closeable {
 			if (cuda) NativeLibrary.getInstance("ggml-cuda");
 			NativeLibrary.getInstance("ggml");
 			api = Native.load("whisper", API_whisper.class);
+		}
+	}
+
+	/**
+	 * get the total vulkan
+	 * @return the count value
+	 * @throws NullPointerException if vulkan not load
+	 */
+	public static int vulkan_count() throws NullPointerException {
+		return api_ggml_vulkan.ggml_backend_vk_get_device_count();
+	}
+	/**
+	 * get the vulkan memory
+	 * @param index the index, from 0 to {@link #vulkan_count()}
+	 * @return the memory size in bytes
+	 * @throws NullPointerException if vulkan not load
+	 */
+	public static long vulkan_memory(final int index) throws NullPointerException {
+		try (final Memory free = new Memory(8); Memory total = new Memory(8)) {
+			api_ggml_vulkan.ggml_backend_vk_get_device_memory(index, free, total);
+			/*
+			 * ggml_backend_vk_get_device_memory in whisper.cpp/ggml/src/ggml-vulkan/ggml-vulkan.cpp
+			 *
+			 *	*total = heap.size;
+			 *	*free = heap.size;
+			 *
+			 * so free = total, skip
+			 */
+			return total.getLong(0);
+		}
+	}
+	/**
+	 * get the vulkan device description
+	 * @param index the index, from 0 to {@link #vulkan_count()}
+	 * @return the device description, such NVIDIA GeForce GTX 9900
+	 * @throws NullPointerException if vulkan not load
+	 */
+	public static String vulkan_description(final int index) throws NullPointerException {
+		try (final Memory buffer = new Memory(1024)) {
+			/*
+			 * for example locale char set UTF-8.
+			 *
+			 * this call fill the char* by UTF-8,
+			 * but Java char is UTF-16BE,
+			 *  so send char[] but keep UTF-8 bytes in memory, to show is wrong value,
+			 *  need decode by UTF-16BE, then encode to UTF-8.
+			 * so do in memory way.
+			 */
+			api_ggml_vulkan.ggml_backend_vk_get_device_description(index, buffer, new NativeLong(buffer.size()));
+			return buffer.getString(0);
 		}
 	}
 
@@ -151,56 +201,6 @@ public class WhisperCJ implements Closeable {
 		params.write();
 
 		return 0;
-	}
-
-	/**
-	 * get the total vulkan
-	 * @return the count value
-	 * @throws NullPointerException if vulkan not load
-	 */
-	public int vulkan_count() throws NullPointerException {
-		return api_ggml_vulkan.ggml_backend_vk_get_device_count();
-	}
-	/**
-	 * get the vulkan memory
-	 * @param index the index, from 0 to {@link #vulkan_count()}
-	 * @return the memory size in bytes
-	 * @throws NullPointerException if vulkan not load
-	 */
-	public long vulkan_memory(final int index) throws NullPointerException {
-		try (final Memory free = new Memory(8); Memory total = new Memory(8)) {
-			api_ggml_vulkan.ggml_backend_vk_get_device_memory(index, free, total);
-			/*
-			 * ggml_backend_vk_get_device_memory in whisper.cpp/ggml/src/ggml-vulkan/ggml-vulkan.cpp
-			 *
-			 *	*total = heap.size;
-			 *	*free = heap.size;
-			 *
-			 * so free = total, skip
-			 */
-			return total.getLong(0);
-		}
-	}
-	/**
-	 * get the vulkan device description
-	 * @param index the index, from 0 to {@link #vulkan_count()}
-	 * @return the device description, such NVIDIA GTX99000000000
-	 * @throws NullPointerException if vulkan not load
-	 */
-	public String vulkan_description(final int index) throws NullPointerException {
-		try (final Memory buffer = new Memory(1024)) {
-			/*
-			 * for example locale char set UTF-8.
-			 *
-			 * this call fill the char* by UTF-8,
-			 * but Java char is UTF-16BE,
-			 *  so send char[] but keep UTF-8 bytes in memory, to show is wrong value,
-			 *  need decode by UTF-16BE, then encode to UTF-8.
-			 * so do in memory way.
-			 */
-			api_ggml_vulkan.ggml_backend_vk_get_device_description(index, buffer, new NativeLong(buffer.size()));
-			return buffer.getString(0);
-		}
 	}
 
 	/**
