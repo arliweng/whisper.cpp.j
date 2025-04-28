@@ -1,0 +1,44 @@
+package cpp.whisper.enums;
+
+public interface ggml_type {
+    public static int GGML_TYPE_F32 = 0;
+    public static int GGML_TYPE_F16 = 1;
+    public static int GGML_TYPE_Q4_0 = 2;
+    public static int GGML_TYPE_Q4_1 = 3;
+//    public static int GGML_TYPE_Q4_2 = 4;
+//    public static int GGML_TYPE_Q4_3 = 5;
+    public static int GGML_TYPE_Q5_0 = 6;
+    public static int GGML_TYPE_Q5_1 = 7;
+    public static int GGML_TYPE_Q8_0 = 8;
+    public static int GGML_TYPE_Q8_1 = 9;
+    public static int GGML_TYPE_Q2_K = 10;
+    public static int GGML_TYPE_Q3_K = 11;
+    public static int GGML_TYPE_Q4_K = 12;
+    public static int GGML_TYPE_Q5_K = 13;
+    public static int GGML_TYPE_Q6_K = 14;
+    public static int GGML_TYPE_Q8_K = 15;
+    public static int GGML_TYPE_IQ2_XXS = 16;
+    public static int GGML_TYPE_IQ2_XS = 17;
+    public static int GGML_TYPE_IQ3_XXS = 18;
+    public static int GGML_TYPE_IQ1_S = 19;
+    public static int GGML_TYPE_IQ4_NL = 20;
+    public static int GGML_TYPE_IQ3_S = 21;
+    public static int GGML_TYPE_IQ2_S = 22;
+    public static int GGML_TYPE_IQ4_XS = 23;
+    public static int GGML_TYPE_I8 = 24;
+    public static int GGML_TYPE_I16 = 25;
+    public static int GGML_TYPE_I32 = 26;
+    public static int GGML_TYPE_I64 = 27;
+    public static int GGML_TYPE_F64 = 28;
+    public static int GGML_TYPE_IQ1_M = 29;
+    public static int GGML_TYPE_BF16 = 30;
+//    public static int GGML_TYPE_Q4_0_4_4 = 31;
+//    public static int GGML_TYPE_Q4_0_4_8 = 32;
+//    public static int GGML_TYPE_Q4_0_8_8 = 33;
+    public static int GGML_TYPE_TQ1_0 = 34;
+    public static int GGML_TYPE_TQ2_0 = 35;
+//    public static int GGML_TYPE_IQ4_NL_4_4 = 36;
+//    public static int GGML_TYPE_IQ4_NL_4_8 = 37;
+//    public static int GGML_TYPE_IQ4_NL_8_8 = 38;
+    public static int GGML_TYPE_COUNT = 39;
+}

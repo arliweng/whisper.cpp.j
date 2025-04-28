@@ -1,0 +1,137 @@
+package cpp.whisper.examples;
+
+import java.io.File;
+import java.nio.FloatBuffer;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
+import java.util.TimeZone;
+
+import javax.sound.sampled.AudioFormat;
+import javax.sound.sampled.AudioInputStream;
+import javax.sound.sampled.AudioSystem;
+
+import com.sun.jna.Pointer;
+
+import cpp.whisper.WhisperCJ;
+import cpp.whisper.callbacks.ggml_log_callback;
+import cpp.whisper.enums.ggml_log_level;
+import cpp.whisper.enums.whisper_sampling_strategy;
+import cpp.whisper.struct.whisper_full_params;
+
+/**
+ * the whisper.cpp vulkan example.
+ * @author arliweng@outlook.com
+ */
+public class Demo1 implements ggml_log_callback, WhisperCJ.PARAMS_CALLBACK, WhisperCJ.PROGRESS_CALLBACK, WhisperCJ.SEGMENT_CALLBACK {
+	private final SimpleDateFormat sdf_srt;
+	protected Demo1() {
+		sdf_srt = new SimpleDateFormat("HH:mm:ss,SSS", Locale.ENGLISH);
+		sdf_srt.setTimeZone(TimeZone.getTimeZone("GMT-0:00"));
+	}
+
+	private long duration_ms;
+	private FloatBuffer read_samples(final String wav_file) throws Exception {
+		/*
+		 * just the example, should replace your decoder, such FFmpeg,
+		 *  the audio frame data from avcodec.avcodec_receive_frame()
+		 * here AudioSystem in most VM only support WAV,AU etc..
+		 */
+		try (AudioInputStream _ais = AudioSystem.getAudioInputStream(new File(wav_file))) {
+			/*
+			 * about duration milliseconds here:
+			 * seconds	= total bytes / bytes per second
+			 *        	= (frame size * bytes per frame) / (sample rate * bytes per sample)
+			 *        	= (frame size * (bits /8)) / (sample rate * (bits /8))
+			 *        	= frame size * (bits /8) / sample rate / (bits /8)
+			 *        	= frame size / sample rate
+			 * milliseconds = 1000 * seconds
+			 *             	= 1000 * frame size / sample rate
+			 */
+			duration_ms = (long) Math.ceil(1000 * _ais.getFrameLength() / _ais.getFormat().getSampleRate());
+			//convert to 16KHz, 32 bits, mono, signed
+			try (AudioInputStream ais = AudioSystem.getAudioInputStream(new AudioFormat(
+				WhisperCJ.AUDIO_SAMPLE_RATE, 32, 1, true, true
+			), _ais)) {
+				//the locale frame buffer, AudioInputStream only
+				final byte[] bb = new byte[ais.getFormat().getFrameSize()];
+				//the samples, them all
+				final FloatBuffer fb = FloatBuffer.allocate((int) Math.ceil(duration_ms * WhisperCJ.AUDIO_SAMPLE_RATE / 1000));
+				for (int v;;) {
+					if (ais.read(bb) <= 0) break;
+					//bigEndian set above
+					v = ((0xff & bb[0]) << 24);
+					v |= ((0xff & bb[1]) << 16);
+					v |= ((0xff & bb[2]) << 8);
+					v |= ((0xff & bb[3]) << 0);
+					//integer 32bits as float 32bits
+					fb.put((float) ((double)v / Integer.MAX_VALUE));
+				}
+				return fb;
+			}
+		}
+	}
+
+	protected long duration_ms() {
+		return duration_ms;
+	}
+
+	@Override
+	public void on_log(final int level, final String text, final Pointer user_data) {
+		switch (level) {
+			case ggml_log_level.GGML_LOG_LEVEL_CONT:
+			case ggml_log_level.GGML_LOG_LEVEL_ERROR:
+			default:
+				System.err.println(text.trim());
+				break;
+		}
+	}
+
+	@Override
+	public void on_modify_params(final whisper_full_params params) {
+		params.no_speech_thold = 0.5f;
+	}
+
+	@Override
+	public void on_progress(final int progress) {
+		System.out.println(progress + "%");
+		if (progress == 100) {
+			System.out.println("--- srt coming");
+		}
+	}
+
+	@Override
+	public void on_segment(final WhisperCJ inc, final int id, final long start, final long end, final String text) {
+		//example SRT format
+		System.out.println(id +1);
+		System.out.print(sdf_srt.format(new Date(start)));
+			System.out.print(" --> ");
+			System.out.println(sdf_srt.format(new Date(end)));
+		System.out.println(text);
+		System.out.println();
+		//example abort
+		if (text.contains(">(-_-!)<")) inc.abort();
+	}
+
+	public static void main(final String[] args) throws Exception {
+		final String wav_file = "/home/arli/Downloads/welcome.wav"; //the wav file
+		final String model_file = "/home/arli/Downloads/ggml-small.bin"; //the model file
+		final String lib_directory = "/home/arli/Downloads/lib/"; //libwhisper.* libggml*.*
+
+		System.setProperty("jna.library.path", lib_directory);
+		//example for CPU, vulkan, or CUDA if exist
+		WhisperCJ.driver(true, true, false);
+
+		try (final WhisperCJ wcj = new WhisperCJ()) {
+			final Demo1 d = new Demo1();
+			wcj.open(true, model_file,
+				whisper_sampling_strategy.WHISPER_SAMPLING_BEAM_SEARCH,
+				"en", d, d
+				);
+
+			final FloatBuffer samples = d.read_samples(wav_file);
+			wcj.whisper(samples);
+			wcj.segments(samples, d, 0, 0);
+		}
+	}
+}
