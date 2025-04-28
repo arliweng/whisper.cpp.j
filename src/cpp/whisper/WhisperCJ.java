@@ -29,9 +29,13 @@ import cpp.whisper.struct.whisper_full_params;
  */
 public class WhisperCJ implements Closeable {
 	/**
-	 * the audio sample rate per second, should convert before.
+	 * the audio samples per second, should convert to before whisper.
 	 */
 	public static final int AUDIO_SAMPLE_RATE = 16000;
+	/**
+	 * the audio samples per millisecond
+	 */
+	public static final int SAMPLES_PER_MILLISECONDS = AUDIO_SAMPLE_RATE / 1000;
 	/** segment callback */
 	public static interface SEGMENT_CALLBACK {
 		/**
@@ -248,19 +252,18 @@ public class WhisperCJ implements Closeable {
 	 *  or null if never use in {@link #vad_segment(FloatBuffer, SEGMENT_CALLBACK, int, long, long, long, String)}
 	 * @param cbs the callback each segment, no null
 	 * @param time_offset the segment times offset in milliseconds or 0
-	 * @return the segments size, 0 or more
+	 * @return the language id
 	 * @throws NullPointerException if open() failed or never call or cbs null
 	 */
 	public int segments(final FloatBuffer samples, final SEGMENT_CALLBACK cbs, final int index_offset, final long time_offset) throws NullPointerException {
 		long s, e; String text;
-		final int size = api.whisper_full_n_segments(p_ctx);
-		for (int i=0; i<size; i++) {
-        	s = api.whisper_full_get_segment_t0(p_ctx, i) * 10;
-        	e = api.whisper_full_get_segment_t1(p_ctx, i) * 10;
-        	text = api.whisper_full_get_segment_text(p_ctx, i);
-        	vad_segment(this, samples, cbs, i, index_offset, s, e, time_offset, text);
+		for (int i=0; i<api.whisper_full_n_segments(p_ctx); i++) {
+			s = api.whisper_full_get_segment_t0(p_ctx, i) * 10;
+			e = api.whisper_full_get_segment_t1(p_ctx, i) * 10;
+			text = api.whisper_full_get_segment_text(p_ctx, i);
+			vad_segment(this, samples, cbs, i, index_offset, s, e, time_offset, text);
 		}
-		return size;
+		return api.whisper_full_lang_id(p_ctx);
 	}
 
 	@Override

@@ -43,10 +43,17 @@ public interface API_whisper extends Library {
     int whisper_model_ftype(Pointer ctx);
     int whisper_model_type(Pointer ctx);
 
-    /* language id detected if auto, after whisper_full() */
+    /**
+     * get language id detected for auto.<br>
+     * after {@link #whisper_full(Pointer, cpp.whisper.struct.whisper_full_params.ByValue, float[], int)}
+     * @param ctx the p_ctx from {@link #whisper_init_from_file_with_params(String, cpp.whisper.struct.whisper_context_params.ByValue)}
+     * @return language id
+     * @see https://github.com/openai/whisper/blob/248b6cb124225dd263bb9bd32d060b6517e067f8/whisper/tokenizer.py#L10
+     * @see https://github.com/ggml-org/whisper.cpp/blob/50fda73f4c46632722df0f102e294e91a4fa731a/src/whisper.cpp#L5509
+     */
     int whisper_full_lang_id(Pointer ctx);
 
-    /* state way, split part by part but context keep to next part, but may break the character order */
+    /* state way, split part by part n context keep to next part, but may break the character order */
     Pointer whisper_init_state(Pointer ctx);
     int whisper_full_with_state(Pointer ctx, Pointer state, whisper_full_params.ByValue params, float[] samples, int n_samples);
     int whisper_full_n_segments_from_state(Pointer state);

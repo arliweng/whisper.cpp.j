@@ -56,7 +56,7 @@ public class Demo1 implements ggml_log_callback, WhisperCJ.PARAMS_CALLBACK, Whis
 				//the locale frame buffer, AudioInputStream only
 				final byte[] bb = new byte[ais.getFormat().getFrameSize()];
 				//the samples, them all
-				final FloatBuffer fb = FloatBuffer.allocate((int) Math.ceil(duration_ms * WhisperCJ.AUDIO_SAMPLE_RATE / 1000));
+				final FloatBuffer fb = FloatBuffer.allocate((int) Math.ceil(duration_ms * WhisperCJ.SAMPLES_PER_MILLISECONDS));
 				for (int v;;) {
 					if (ais.read(bb) <= 0) break;
 					//bigEndian set above
@@ -64,7 +64,7 @@ public class Demo1 implements ggml_log_callback, WhisperCJ.PARAMS_CALLBACK, Whis
 					v |= ((0xff & bb[1]) << 16);
 					v |= ((0xff & bb[2]) << 8);
 					v |= ((0xff & bb[3]) << 0);
-					//integer 32bits as float 32bits
+					//integer 32bits to float 32bits
 					fb.put((float) ((double)v / Integer.MAX_VALUE));
 				}
 				return fb;
