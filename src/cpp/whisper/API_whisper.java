@@ -9,7 +9,7 @@ import cpp.whisper.struct.whisper_full_params;
 
 /**
  * the whisper.cpp API
- * @see whisper.cpp/whisper.cpp/include/whisper.h
+ * @see whisper.cpp/include/whisper.h
  * @author arliweng@outlook.com
  */
 public interface API_whisper extends Library {

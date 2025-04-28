@@ -2,7 +2,6 @@ package cpp.whisper;
 
 import java.io.Closeable;
 import java.nio.FloatBuffer;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import com.sun.jna.CallbackReference;
 import com.sun.jna.Memory;
@@ -91,7 +90,7 @@ public class WhisperCJ implements Closeable {
 	/**
 	 * the abort flag.<br>
 	 * without volatile to speed up, so may delay.
-	 *  change to {@link AtomicBoolean} if need.
+	 *  change to {@link java.util.concurrent.atomic.AtomicBoolean} if need.
 	 */
 	private boolC99 abort = boolC99.FALSE;
 	public WhisperCJ() {}
