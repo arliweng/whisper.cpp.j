@@ -3,16 +3,13 @@ package cpp.whisper;
 import java.io.Closeable;
 import java.nio.FloatBuffer;
 
-import com.sun.jna.CallbackReference;
 import com.sun.jna.Memory;
 import com.sun.jna.Native;
 import com.sun.jna.NativeLibrary;
 import com.sun.jna.NativeLong;
 import com.sun.jna.Pointer;
 
-import cpp.whisper.callbacks.abort_callback;
 import cpp.whisper.callbacks.ggml_log_callback;
-import cpp.whisper.callbacks.progress_callback;
 import cpp.whisper.enums.whisper_sampling_strategy;
 import cpp.whisper.struct.boolC99;
 import cpp.whisper.struct.whisper_context_params;
@@ -39,13 +36,12 @@ public class WhisperCJ implements Closeable {
 	public static interface SEGMENT_CALLBACK {
 		/**
 		 * call back each segment
-		 * @param inc the WhisperCJ
 		 * @param id the index, from 0
 		 * @param start the time start in milliseconds
 		 * @param end the time end in milliseconds
 		 * @param text the content
 		 */
-		void on_segment(WhisperCJ inc, int id, long start, long end, String text);
+		void on_segment(int id, long start, long end, String text);
 	}
 	/** parameters callback */
 	public static interface PARAMS_CALLBACK {
@@ -54,14 +50,6 @@ public class WhisperCJ implements Closeable {
 		 * @param params the parameters
 		 */
 		void on_modify_params(final whisper_full_params params);
-	}
-	/** progress callback */
-	public static interface PROGRESS_CALLBACK {
-		/**
-		 * call back to progress changed
-		 * @param progress the percent
-		 */
-		void on_progress(final int progress);
 	}
 
 	private static API_whisper api;
@@ -83,6 +71,21 @@ public class WhisperCJ implements Closeable {
 			NativeLibrary.getInstance("ggml");
 			api = Native.load("whisper", API_whisper.class);
 		}
+	}
+
+	public static API_whisper api() {
+		return api;
+	}
+	public static API_ggml_vulkan api_ggml_vulkan() {
+		return api_ggml_vulkan;
+	}
+
+	/**
+	 * redirect the log to target callback
+	 * @param cbl the log callback, no null
+	 */
+	public static void log_set(final ggml_log_callback cbl) {
+		api.whisper_log_set(cbl, null);
 	}
 
 	/**
@@ -136,13 +139,7 @@ public class WhisperCJ implements Closeable {
 	}
 
 	private Pointer p_wcp, p_ctx, p_params;
-	private whisper_full_params.ByValue params;
-	/**
-	 * the abort flag.<br>
-	 * without volatile to speed up, so may delay.
-	 *  change to {@link java.util.concurrent.atomic.AtomicBoolean} if need.
-	 */
-	private boolC99 abort = boolC99.FALSE;
+	private static whisper_full_params.ByValue params;
 	public WhisperCJ() {}
 
 	/**
@@ -154,10 +151,13 @@ public class WhisperCJ implements Closeable {
 	 * @param cbp the callback to modify params, or null
 	 * @param cbv the callback to get progress, or null
 	 * @return state code, -1 or less failed.
+	 * @throws UnsupportedOperationException if another opened but not close yet.
 	 */
 	public int open(final boolean gpu, final String model_file,
-		final int strategy, final String language, final PARAMS_CALLBACK cbp, final PROGRESS_CALLBACK cbv
-	) {
+		final int strategy, final String language, final PARAMS_CALLBACK cbp
+	) throws UnsupportedOperationException {
+		if (null != params) throw new UnsupportedOperationException();
+
 		p_wcp = api.whisper_context_default_params_by_ref();
 		final whisper_context_params.ByValue wcp = new whisper_context_params.ByValue(p_wcp);
 		wcp.read();
@@ -181,41 +181,10 @@ public class WhisperCJ implements Closeable {
 		if (null != cbp) {
 			cbp.on_modify_params(params);
 		}
-		//keep last one before write
-		if (cbv != null) {
-			params.progress_callback = CallbackReference.getFunctionPointer(new progress_callback() {
-				@Override
-				public void on_progress(final Pointer ctx, final Pointer state, final int progress, final Pointer user_data) {
-					cbv.on_progress(progress);
-				}
-			});
-		}
-		//JNA not method overload, that need for each the parameters, so need new class each callback.
-		params.abort_callback = CallbackReference.getFunctionPointer(new abort_callback() {
-			@Override
-			public boolC99 answer_abort(final Pointer data) {
-				return abort;
-			}
-		});
 		//in some JVM with stack delay problem, u may need call this twice.
 		params.write();
 
 		return 0;
-	}
-
-	/**
-	 * redirect the log to target callback
-	 * @param cbl the log callback, no null
-	 */
-	public void log(final ggml_log_callback cbl) {
-		api.whisper_log_set(cbl, null);
-	}
-
-	/**
-	 * abort current whisper if in running
-	 */
-	public void abort() {
-		abort = boolC99.TRUE;
 	}
 
 	/**
@@ -237,12 +206,12 @@ public class WhisperCJ implements Closeable {
 	 * @param time_offset the time offset
 	 * @param text the text
 	 */
-	protected void vad_segment(final WhisperCJ inc, final FloatBuffer samples,
-		final SEGMENT_CALLBACK cbs, final int index, final int index_offset,
-		final long start_ms, final long end_ms, final long time_offset, final String text
+	protected void vad_segment(final FloatBuffer samples, final SEGMENT_CALLBACK cbs,
+		final int index, final int index_offset, final long start_ms,
+		final long end_ms, final long time_offset, final String text
 	) {
 		/* check the samples for voice, change the segment times here if need */
-		cbs.on_segment(inc, index_offset + index, time_offset + start_ms, time_offset + end_ms, text);
+		cbs.on_segment(index_offset + index, time_offset + start_ms, time_offset + end_ms, text);
 	}
 
 	/**
@@ -260,7 +229,7 @@ public class WhisperCJ implements Closeable {
 			s = api.whisper_full_get_segment_t0(p_ctx, i) * 10;
 			e = api.whisper_full_get_segment_t1(p_ctx, i) * 10;
 			text = api.whisper_full_get_segment_text(p_ctx, i);
-			vad_segment(this, samples, cbs, i, index_offset, s, e, time_offset, text);
+			vad_segment(samples, cbs, i, index_offset, s, e, time_offset, text);
 		}
 		return api.whisper_full_lang_id(p_ctx);
 	}
@@ -270,5 +239,6 @@ public class WhisperCJ implements Closeable {
 		if (null != p_ctx) api.whisper_free(p_ctx);
 		if (null != p_wcp) api.whisper_free_context_params(p_wcp);
 		if (null != p_params) api.whisper_free_params(p_params);
+		params = null;
 	}
 }

@@ -14,16 +14,20 @@ import javax.sound.sampled.AudioSystem;
 import com.sun.jna.Pointer;
 
 import cpp.whisper.WhisperCJ;
+import cpp.whisper.callbacks.abort_callback;
 import cpp.whisper.callbacks.ggml_log_callback;
+import cpp.whisper.callbacks.new_segment_callback;
+import cpp.whisper.callbacks.progress_callback;
 import cpp.whisper.enums.ggml_log_level;
 import cpp.whisper.enums.whisper_sampling_strategy;
+import cpp.whisper.struct.boolC99;
 import cpp.whisper.struct.whisper_full_params;
 
 /**
  * the whisper.cpp vulkan example.
  * @author arliweng@outlook.com
  */
-public class Demo1 implements ggml_log_callback, WhisperCJ.PARAMS_CALLBACK, WhisperCJ.PROGRESS_CALLBACK, WhisperCJ.SEGMENT_CALLBACK {
+public class Demo1 implements ggml_log_callback, WhisperCJ.PARAMS_CALLBACK, WhisperCJ.SEGMENT_CALLBACK {
 	private final SimpleDateFormat sdf_srt;
 	protected Demo1() {
 		sdf_srt = new SimpleDateFormat("HH:mm:ss,SSS", Locale.ENGLISH);
@@ -82,26 +86,69 @@ public class Demo1 implements ggml_log_callback, WhisperCJ.PARAMS_CALLBACK, Whis
 			case ggml_log_level.GGML_LOG_LEVEL_CONT:
 			case ggml_log_level.GGML_LOG_LEVEL_ERROR:
 			default:
+				System.err.print(Integer.toHexString(level));
+				System.err.print(' ');
 				System.err.println(text.trim());
 				break;
 		}
 	}
 
+	private volatile boolC99 abort = boolC99.FALSE;
+	@SuppressWarnings("unused")
 	@Override
 	public void on_modify_params(final whisper_full_params params) {
 		params.no_speech_thold = 0.5f;
-	}
+		//remove this if unneeded, is inside loop many ask
+		params.abort_callback = new abort_callback() {
+			@Override
+			public boolC99 answer_abort(final Pointer data) {
+				return abort;
+			}
+		};
+		//the progress callback, read whisper_full_params about warning, always as new class
+		params.progress_callback = new progress_callback() {
+			@Override
+			public void on_progress(final Pointer ctx, final Pointer state, final int progress, final Pointer user_data) {
+				System.out.println(progress + "%");
+				if (progress == 100) {
+					System.out.println("--- srt coming");
+				}
+				if (">(-_-!)<" == "ami bad guy? make true here to abort") {
+					abort = boolC99.TRUE;
+				}
+			}
+		};
 
-	@Override
-	public void on_progress(final int progress) {
-		System.out.println(progress + "%");
-		if (progress == 100) {
-			System.out.println("--- srt coming");
+		if ("need segment immediate not after" == "make this true") { //just example, never hit
+			params.new_segment_callback = new new_segment_callback() {
+				@Override
+				public void on_segment(final Pointer ctx, final Pointer state, final int n_new, final Pointer user_data) {
+					if ("whisper_full_with_state" == "call before, not whisper_full") {
+					 	long s, e; String text;
+					 	final int size = WhisperCJ.api().whisper_full_n_segments_from_state(state);
+					 	for (int i = size -n_new; i < size; i++) {
+					 		s = WhisperCJ.api().whisper_full_get_segment_t0_from_state(state, i) * 10;
+					 		e = WhisperCJ.api().whisper_full_get_segment_t1_from_state(state, i) * 10;
+					 		text = WhisperCJ.api().whisper_full_get_segment_text_from_state(state, i);
+					 		Demo1.this.on_segment(i, s, e, text);
+					 	}
+					} else {
+					 	long s, e; String text;
+					 	final int size = WhisperCJ.api().whisper_full_n_segments(ctx);
+					 	for (int i = size -n_new; i < size; i++) {
+					 		s = WhisperCJ.api().whisper_full_get_segment_t0(ctx, i) * 10;
+					 		e = WhisperCJ.api().whisper_full_get_segment_t1(ctx, i) * 10;
+					 		text = WhisperCJ.api().whisper_full_get_segment_text(ctx, i);
+					 		Demo1.this.on_segment(i, s, e, text);
+					 	}
+					}
+				}
+			};
 		}
 	}
 
 	@Override
-	public void on_segment(final WhisperCJ inc, final int id, final long start, final long end, final String text) {
+	public void on_segment(final int id, final long start, final long end, final String text) {
 		//example SRT format
 		System.out.println(id +1);
 		System.out.print(sdf_srt.format(new Date(start)));
@@ -109,8 +156,6 @@ public class Demo1 implements ggml_log_callback, WhisperCJ.PARAMS_CALLBACK, Whis
 			System.out.println(sdf_srt.format(new Date(end)));
 		System.out.println(text);
 		System.out.println();
-		//example abort
-		if (text.contains(">(-_-!)<")) inc.abort();
 	}
 
 	public static void main(final String[] args) throws Exception {
@@ -122,14 +167,15 @@ public class Demo1 implements ggml_log_callback, WhisperCJ.PARAMS_CALLBACK, Whis
 		//example for CPU, vulkan, or CUDA if exist
 		WhisperCJ.driver(true, true, false);
 
-		try (final WhisperCJ wcj = new WhisperCJ()) {
-			final Demo1 d = new Demo1();
-			wcj.open(true, model_file,
-				whisper_sampling_strategy.WHISPER_SAMPLING_BEAM_SEARCH,
-				"en", d, d
-				);
+		final Demo1 d = new Demo1();
+		WhisperCJ.log_set(d);
 
+		try (final WhisperCJ wcj = new WhisperCJ()) {
+			//open
+			wcj.open(true, model_file, whisper_sampling_strategy.WHISPER_SAMPLING_BEAM_SEARCH, "en", d);
+			//get the audio samples
 			final FloatBuffer samples = d.read_samples(wav_file);
+			//whisper
 			wcj.whisper(samples);
 			wcj.segments(samples, d, 0, 0);
 		}

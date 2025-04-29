@@ -8,6 +8,12 @@ import com.sun.jna.NativeLong;
 import com.sun.jna.Pointer;
 import com.sun.jna.Structure;
 
+import cpp.whisper.callbacks.abort_callback;
+import cpp.whisper.callbacks.encoder_begin_callback;
+import cpp.whisper.callbacks.logits_filter_callback;
+import cpp.whisper.callbacks.new_segment_callback;
+import cpp.whisper.callbacks.progress_callback;
+
 public class whisper_full_params extends Structure {
 	protected whisper_full_params(final Pointer p) {
         super(p);
@@ -75,7 +81,7 @@ public class whisper_full_params extends Structure {
     /*
      * WARNING by arli weng, 20240416
      *
-     * see com.sun.jna.Callback.METHOD_NAME
+     * see {@link com.sun.jna.Callback#METHOD_NAME}
      * it mean, the method name of callback NOT overload.
      *  because to do that, need for each the parameters, and cache them.
      *
@@ -106,35 +112,23 @@ public class whisper_full_params extends Structure {
      *
      * in JNA, when callback only one method, whatever name its, call it.
      *
-     * BUT may java compiler or obfuscater change the name as one,
+     * !BUT! may java compiler or obfuscater change the name as one,
      *  so don't implements them all in same one class.
      */
+    public new_segment_callback new_segment_callback;
     /**
-     * the new segment callback
-     * @see cpp.whisper.callbacks.new_segment_callback
-     */
-    public Pointer new_segment_callback;
-    /**
-     * the data for {@link #new_segment_callback}.<br>
+     * the user_data for {@link #new_segment_callback}.<br>
      * keep null here, should use Java Object is managed,
      *  not native object, it need native access twice.
      */
     public Pointer new_segment_callback_user_data;
-    /**
-     * the progress callback
-     * @see cpp.whisper.callbacks.progress_callback
-     */
-    public Pointer progress_callback;
+    public progress_callback progress_callback;
     public Pointer progress_callback_user_data;
-    public Pointer encoder_begin_callback;
+    public encoder_begin_callback encoder_begin_callback;
     public Pointer encoder_begin_callback_user_data;
-    /**
-     * the abort callback
-     * @see cpp.whisper.callbacks.abort_callback
-     */
-    public Pointer abort_callback;
+    public abort_callback abort_callback;
     public Pointer abort_callback_user_data;
-    public Pointer logits_filter_callback;
+    public logits_filter_callback logits_filter_callback;
     public Pointer logits_filter_callback_user_data;
 
     public Pointer grammar_rules;

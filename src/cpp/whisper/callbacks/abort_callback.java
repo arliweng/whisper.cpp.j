@@ -6,5 +6,10 @@ import com.sun.jna.Pointer;
 import cpp.whisper.struct.boolC99;
 
 public interface abort_callback extends Callback {
+	/**
+	 * called each time before ggml computation starts
+	 * @param data the user data
+	 * @return true continue, false abort
+	 */
 	boolC99 answer_abort(Pointer data);
 }
