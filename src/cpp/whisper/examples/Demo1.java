@@ -2,8 +2,8 @@ package cpp.whisper.examples;
 
 import java.io.File;
 import java.nio.FloatBuffer;
+import java.text.FieldPosition;
 import java.text.SimpleDateFormat;
-import java.util.Date;
 import java.util.Locale;
 import java.util.TimeZone;
 
@@ -147,19 +147,25 @@ public class Demo1 implements ggml_log_callback, WhisperCJ.PARAMS_CALLBACK, Whis
 		}
 	}
 
+	private final StringBuffer sb_sdf_srt = new StringBuffer(16);
+	private final FieldPosition fp_sdf_srt = new FieldPosition(0);
 	@Override
 	public void on_segment(final int id, final long start, final long end, final String text) {
-		//example SRT format
+		//example SRT format, should replace your code, without SimpleDateFormat.
 		System.out.println(id +1);
-		System.out.print(sdf_srt.format(new Date(start)));
+		sdf_srt.format(start, sb_sdf_srt, fp_sdf_srt);
+		System.out.print(sb_sdf_srt);
+			sb_sdf_srt.setLength(0);
 			System.out.print(" --> ");
-			System.out.println(sdf_srt.format(new Date(end)));
+			sdf_srt.format(end, sb_sdf_srt, fp_sdf_srt);
+			System.out.println(sb_sdf_srt);
+			sb_sdf_srt.setLength(0);
 		System.out.println(text);
 		System.out.println();
 	}
 
 	public static void main(final String[] args) throws Exception {
-		final String wav_file = "/home/arli/Downloads/welcome.wav"; //the wav file
+		final String wav_file = "/home/arli/Downloads/demo.wav"; //the wav file
 		final String model_file = "/home/arli/Downloads/ggml-small.bin"; //the model file
 		final String lib_directory = "/home/arli/Downloads/lib/"; //libwhisper.* libggml*.*
 
