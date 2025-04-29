@@ -9,13 +9,12 @@ try (final WhisperCJ wcj = new WhisperCJ()) {
 		"en", new WhisperCJ.PARAMS_CALLBACK() {
 			@Override
 			public void on_modify_params(whisper_full_params params) {
-				params.n_max_text_ctx = 64;
+				params.no_speech_thold = 0.5f;
 			}
 		}, null
 	);
 
-	final FloatBuffer samples = FloatBuffer.allocate(4096);
-	read_audio(samples);
+	final FloatBuffer samples = read_audio();
 	wcj.whisper(samples);
 	wcj.segments(samples, new WhisperCJ.SEGMENT_CALLBACK() {
 		@Override

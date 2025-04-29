@@ -150,14 +150,12 @@ public class WhisperCJ implements Closeable {
 	 * @param language the whisper language, "auto" for auto-detect, "en" by default
 	 * @param cbp the callback to modify params, or null
 	 * @param cbv the callback to get progress, or null
-	 * @return state code, -1 or less failed.
-	 * @throws UnsupportedOperationException if another opened but not close yet.
+	 * @return state code, 0 succeed, -1 or less failed, -2 another opened but no close yet.
 	 */
 	public int open(final boolean gpu, final String model_file,
 		final int strategy, final String language, final PARAMS_CALLBACK cbp
-	) throws UnsupportedOperationException {
-		if (null != params) throw new UnsupportedOperationException();
-
+	) {
+		if (null != params) return -2;
 		p_wcp = api.whisper_context_default_params_by_ref();
 		final whisper_context_params.ByValue wcp = new whisper_context_params.ByValue(p_wcp);
 		wcp.read();
