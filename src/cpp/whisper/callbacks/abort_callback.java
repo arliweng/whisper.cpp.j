@@ -9,7 +9,7 @@ public interface abort_callback extends Callback {
 	/**
 	 * called each time before ggml computation starts
 	 * @param data the user data
-	 * @return true continue, false abort
+	 * @return true abort, false continue
 	 */
 	boolC99 answer_abort(Pointer data);
 }
