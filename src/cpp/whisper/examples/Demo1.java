@@ -81,7 +81,7 @@ public class Demo1 implements ggml_log_callback, WhisperCJ.PARAMS_CALLBACK<Strin
 	}
 
 	@Override
-	public void on_log(final int level, final String text, final Pointer user_data) {
+	public void on_log(final int level, final String text, final Pointer user_data) throws RuntimeException {
 		switch (level) {
 			case ggml_log_level.GGML_LOG_LEVEL_CONT:
 			case ggml_log_level.GGML_LOG_LEVEL_ERROR:
@@ -96,7 +96,7 @@ public class Demo1 implements ggml_log_callback, WhisperCJ.PARAMS_CALLBACK<Strin
 	private volatile boolC99 abort = boolC99.FALSE;
 	@SuppressWarnings("unused")
 	@Override
-	public void on_modify_params(final whisper_full_params params, final String model_file) {
+	public void on_modify_params(final whisper_full_params params, final String model_file) throws RuntimeException {
 		params.no_speech_thold = 0.5f;
 		//remove this if unneeded, is inside loop many ask
 		params.abort_callback = new abort_callback() {
