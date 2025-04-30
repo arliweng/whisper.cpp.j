@@ -46,13 +46,13 @@ public class WhisperCJ implements Closeable {
 		void on_segment(int id, long start, long end, String text, V v) throws E;
 	}
 	/** parameters callback */
-	public static interface PARAMS_CALLBACK<V> {
+	public static interface PARAMS_CALLBACK<V, E extends Exception> {
 		/**
 		 * call back to modify the parameters
 		 * @param params the parameters
 		 * @param v the user data from caller
 		 */
-		void on_modify_params(final whisper_full_params params, V v);
+		void on_modify_params(final whisper_full_params params, V v) throws E;
 	}
 
 	private static API_whisper api;
@@ -148,6 +148,7 @@ public class WhisperCJ implements Closeable {
 	/**
 	 * open the whisper
 	 * @param <V> the user data type
+	 * @param <E> the Exception type by cbp
 	 * @param gpu true use GPU
 	 * @param model_file the model file use to, no null
 	 * @param strategy the strategy, such {@link whisper_sampling_strategy#WHISPER_SAMPLING_BEAM_SEARCH}
@@ -156,9 +157,9 @@ public class WhisperCJ implements Closeable {
 	 * @param v the user data for cbp
 	 * @return state code, 0 succeed, -1 or less failed, -2 another opened but no close yet.
 	 */
-	public <V> int open(final boolean gpu, final String model_file,
-		final int strategy, final String language, final PARAMS_CALLBACK<V> cbp, final V v
-	) {
+	public <V, E extends Exception> int open(final boolean gpu, final String model_file,
+		final int strategy, final String language, final PARAMS_CALLBACK<V, E> cbp, final V v
+	) throws E {
 		if (null != params) return -2;
 		p_wcp = api.whisper_context_default_params_by_ref();
 		final whisper_context_params.ByValue wcp = new whisper_context_params.ByValue(p_wcp);
@@ -201,6 +202,7 @@ public class WhisperCJ implements Closeable {
 
 	/**
 	 * VAD the segment
+	 * @param <E> the Exception type by cbs
 	 * @param <V> the user data type
 	 * @param cbs the segment callback
 	 * @param v the user data for cbs

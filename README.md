@@ -6,7 +6,7 @@ base on [JNA](https://github.com/java-native-access/jna) bindings for [whisper.c
 try (final WhisperCJ wcj = new WhisperCJ()) {
 	wcj.open(true, "../ggml-small.bin",
 		whisper_sampling_strategy.WHISPER_SAMPLING_BEAM_SEARCH,
-		"en", new WhisperCJ.PARAMS_CALLBACK<Float>() {
+		"en", new WhisperCJ.PARAMS_CALLBACK<Float, RuntimeException>() {
 			@Override
 			public void on_modify_params(final whisper_full_params params, final Float v) {
 				params.no_speech_thold = v;

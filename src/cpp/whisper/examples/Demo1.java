@@ -27,7 +27,7 @@ import cpp.whisper.struct.whisper_full_params;
  * the whisper.cpp vulkan example.
  * @author arliweng@outlook.com
  */
-public class Demo1 implements ggml_log_callback, WhisperCJ.PARAMS_CALLBACK<String>, WhisperCJ.SEGMENT_CALLBACK<String, RuntimeException> {
+public class Demo1 implements ggml_log_callback, WhisperCJ.PARAMS_CALLBACK<String, RuntimeException>, WhisperCJ.SEGMENT_CALLBACK<String, RuntimeException> {
 	private final SimpleDateFormat sdf_srt;
 	protected Demo1() {
 		sdf_srt = new SimpleDateFormat("HH:mm:ss,SSS", Locale.ENGLISH);
@@ -150,7 +150,7 @@ public class Demo1 implements ggml_log_callback, WhisperCJ.PARAMS_CALLBACK<Strin
 	private final StringBuffer sb_sdf_srt = new StringBuffer(16);
 	private final FieldPosition fp_sdf_srt = new FieldPosition(0);
 	@Override
-	public void on_segment(final int id, final long start, final long end, final String text, final String model_file) throws RuntimeException {
+	public void on_segment(final int id, final long start, final long end, final String text, final String model_file) {
 		//example SRT format, should replace your code, without SimpleDateFormat.
 		System.out.println(id +1);
 		sdf_srt.format(start, sb_sdf_srt, fp_sdf_srt);
