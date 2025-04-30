@@ -6,22 +6,22 @@ base on [JNA](https://github.com/java-native-access/jna) bindings for [whisper.c
 try (final WhisperCJ wcj = new WhisperCJ()) {
 	wcj.open(true, "../ggml-small.bin",
 		whisper_sampling_strategy.WHISPER_SAMPLING_BEAM_SEARCH,
-		"en", new WhisperCJ.PARAMS_CALLBACK() {
+		"en", new WhisperCJ.PARAMS_CALLBACK<Float>() {
 			@Override
-			public void on_modify_params(whisper_full_params params) {
-				params.no_speech_thold = 0.5f;
+			public void on_modify_params(final whisper_full_params params, final Float v) {
+				params.no_speech_thold = v;
 			}
-		}, null
+		}, 0.5f
 	);
 
 	final FloatBuffer samples = read_audio();
 	wcj.whisper(samples);
-	wcj.segments(samples, new WhisperCJ.SEGMENT_CALLBACK() {
+	wcj.segments(samples, new WhisperCJ.SEGMENT_CALLBACK<Object, RuntimeException>() {
 		@Override
-		public void on_segment(WhisperCJ inc, int id, long start, long end, String text) {
+		public void on_segment(final int id, final long start, final long end, final String text, final Object v) {
 			System.out.println("id " + id + "," + start + "," + end + " " + text);
 		}
-	}, 0, 0);
+	}, null, 0, 0);
 }
 ```
 

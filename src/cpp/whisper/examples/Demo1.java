@@ -27,7 +27,7 @@ import cpp.whisper.struct.whisper_full_params;
  * the whisper.cpp vulkan example.
  * @author arliweng@outlook.com
  */
-public class Demo1 implements ggml_log_callback, WhisperCJ.PARAMS_CALLBACK, WhisperCJ.SEGMENT_CALLBACK {
+public class Demo1 implements ggml_log_callback, WhisperCJ.PARAMS_CALLBACK<String>, WhisperCJ.SEGMENT_CALLBACK<String, RuntimeException> {
 	private final SimpleDateFormat sdf_srt;
 	protected Demo1() {
 		sdf_srt = new SimpleDateFormat("HH:mm:ss,SSS", Locale.ENGLISH);
@@ -96,7 +96,7 @@ public class Demo1 implements ggml_log_callback, WhisperCJ.PARAMS_CALLBACK, Whis
 	private volatile boolC99 abort = boolC99.FALSE;
 	@SuppressWarnings("unused")
 	@Override
-	public void on_modify_params(final whisper_full_params params) {
+	public void on_modify_params(final whisper_full_params params, final String model_file) {
 		params.no_speech_thold = 0.5f;
 		//remove this if unneeded, is inside loop many ask
 		params.abort_callback = new abort_callback() {
@@ -130,7 +130,7 @@ public class Demo1 implements ggml_log_callback, WhisperCJ.PARAMS_CALLBACK, Whis
 					 		s = WhisperCJ.api().whisper_full_get_segment_t0_from_state(state, i) * 10;
 					 		e = WhisperCJ.api().whisper_full_get_segment_t1_from_state(state, i) * 10;
 					 		text = WhisperCJ.api().whisper_full_get_segment_text_from_state(state, i);
-					 		Demo1.this.on_segment(i, s, e, text);
+					 		Demo1.this.on_segment(i, s, e, text, null);
 					 	}
 					} else {
 					 	long s, e; String text;
@@ -139,7 +139,7 @@ public class Demo1 implements ggml_log_callback, WhisperCJ.PARAMS_CALLBACK, Whis
 					 		s = WhisperCJ.api().whisper_full_get_segment_t0(ctx, i) * 10;
 					 		e = WhisperCJ.api().whisper_full_get_segment_t1(ctx, i) * 10;
 					 		text = WhisperCJ.api().whisper_full_get_segment_text(ctx, i);
-					 		Demo1.this.on_segment(i, s, e, text);
+					 		Demo1.this.on_segment(i, s, e, text, null);
 					 	}
 					}
 				}
@@ -150,7 +150,7 @@ public class Demo1 implements ggml_log_callback, WhisperCJ.PARAMS_CALLBACK, Whis
 	private final StringBuffer sb_sdf_srt = new StringBuffer(16);
 	private final FieldPosition fp_sdf_srt = new FieldPosition(0);
 	@Override
-	public void on_segment(final int id, final long start, final long end, final String text) {
+	public void on_segment(final int id, final long start, final long end, final String text, final String model_file) throws RuntimeException {
 		//example SRT format, should replace your code, without SimpleDateFormat.
 		System.out.println(id +1);
 		sdf_srt.format(start, sb_sdf_srt, fp_sdf_srt);
@@ -178,12 +178,12 @@ public class Demo1 implements ggml_log_callback, WhisperCJ.PARAMS_CALLBACK, Whis
 
 		try (final WhisperCJ wcj = new WhisperCJ()) {
 			//open
-			wcj.open(true, model_file, whisper_sampling_strategy.WHISPER_SAMPLING_BEAM_SEARCH, "en", d);
+			wcj.open(true, model_file, whisper_sampling_strategy.WHISPER_SAMPLING_BEAM_SEARCH, "en", d, model_file);
 			//get the audio samples
 			final FloatBuffer samples = d.read_samples(wav_file);
 			//whisper
 			wcj.whisper(samples);
-			wcj.segments(samples, d, 0, 0);
+			wcj.segments(samples, d, model_file, 0, 0);
 		}
 	}
 }

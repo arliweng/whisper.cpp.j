@@ -1,6 +1,7 @@
 package cpp.whisper;
 
 import java.io.Closeable;
+import java.io.IOException;
 import java.nio.FloatBuffer;
 
 import com.sun.jna.Memory;
@@ -33,23 +34,25 @@ public class WhisperCJ implements Closeable {
 	 */
 	public static final int SAMPLES_PER_MILLISECONDS = AUDIO_SAMPLE_RATE / 1000;
 	/** segment callback */
-	public static interface SEGMENT_CALLBACK {
+	public static interface SEGMENT_CALLBACK<V, E extends Exception> {
 		/**
 		 * call back each segment
 		 * @param id the index, from 0
 		 * @param start the time start in milliseconds
 		 * @param end the time end in milliseconds
 		 * @param text the content
+		 * @param v the user data from caller
 		 */
-		void on_segment(int id, long start, long end, String text);
+		void on_segment(int id, long start, long end, String text, V v) throws E;
 	}
 	/** parameters callback */
-	public static interface PARAMS_CALLBACK {
+	public static interface PARAMS_CALLBACK<V> {
 		/**
 		 * call back to modify the parameters
 		 * @param params the parameters
+		 * @param v the user data from caller
 		 */
-		void on_modify_params(final whisper_full_params params);
+		void on_modify_params(final whisper_full_params params, V v);
 	}
 
 	private static API_whisper api;
@@ -144,16 +147,17 @@ public class WhisperCJ implements Closeable {
 
 	/**
 	 * open the whisper
+	 * @param <V> the user data type
 	 * @param gpu true use GPU
 	 * @param model_file the model file use to, no null
 	 * @param strategy the strategy, such {@link whisper_sampling_strategy#WHISPER_SAMPLING_BEAM_SEARCH}
 	 * @param language the whisper language, "auto" for auto-detect, "en" by default
 	 * @param cbp the callback to modify params, or null
-	 * @param cbv the callback to get progress, or null
+	 * @param v the user data for cbp
 	 * @return state code, 0 succeed, -1 or less failed, -2 another opened but no close yet.
 	 */
-	public int open(final boolean gpu, final String model_file,
-		final int strategy, final String language, final PARAMS_CALLBACK cbp
+	public <V> int open(final boolean gpu, final String model_file,
+		final int strategy, final String language, final PARAMS_CALLBACK<V> cbp, final V v
 	) {
 		if (null != params) return -2;
 		p_wcp = api.whisper_context_default_params_by_ref();
@@ -177,7 +181,7 @@ public class WhisperCJ implements Closeable {
 		params.strategy = strategy;
 		params.language = language;
 		if (null != cbp) {
-			cbp.on_modify_params(params);
+			cbp.on_modify_params(params, v);
 		}
 		//in some JVM with stack delay problem, u may need call this twice.
 		params.write();
@@ -197,37 +201,48 @@ public class WhisperCJ implements Closeable {
 
 	/**
 	 * VAD the segment
+	 * @param <V> the user data type
 	 * @param cbs the segment callback
+	 * @param v the user data for cbs
 	 * @param index the index number
 	 * @param start_ms the start in milliseconds
 	 * @param end_ms the end in milliseconds
 	 * @param time_offset the time offset
 	 * @param text the text
+	 * @throws IOException if IO error
 	 */
-	protected void vad_segment(final FloatBuffer samples, final SEGMENT_CALLBACK cbs,
+	protected <V, E extends Exception> void vad_segment(final FloatBuffer samples,
+		final SEGMENT_CALLBACK<V, E> cbs, final V v,
 		final int index, final int index_offset, final long start_ms,
 		final long end_ms, final long time_offset, final String text
-	) {
+	) throws E {
 		/* check the samples for voice, change the segment times here if need */
-		cbs.on_segment(index_offset + index, time_offset + start_ms, time_offset + end_ms, text);
+		cbs.on_segment(index_offset + index, time_offset + start_ms, time_offset + end_ms, text, v);
 	}
 
 	/**
 	 * get the segments
+	 * @param <V> the user data type by cbs
+	 * @param <E> the Exception type by cbs
 	 * @param samples the samples use to call {@link #whisper(FloatBuffer)} before,
 	 *  or null if never use in {@link #vad_segment(FloatBuffer, SEGMENT_CALLBACK, int, long, long, long, String)}
 	 * @param cbs the callback each segment, no null
+	 * @param v the user data for cbs
+	 * @param index_offset the segment index offset or 0
 	 * @param time_offset the segment times offset in milliseconds or 0
-	 * @return the language id
+	 * @return the language id, see {@link API_whisper#whisper_full_lang_id(Pointer)}
 	 * @throws NullPointerException if open() failed or never call or cbs null
+	 * @throws E throw by {@link SEGMENT_CALLBACK#on_segment(int, long, long, String)}
 	 */
-	public int segments(final FloatBuffer samples, final SEGMENT_CALLBACK cbs, final int index_offset, final long time_offset) throws NullPointerException {
+	public <V, E extends Exception> int segments(final FloatBuffer samples,
+		final SEGMENT_CALLBACK<V, E> cbs, final V v, final int index_offset, final long time_offset
+	) throws NullPointerException, E {
 		long s, e; String text;
 		for (int i=0; i<api.whisper_full_n_segments(p_ctx); i++) {
 			s = api.whisper_full_get_segment_t0(p_ctx, i) * 10;
 			e = api.whisper_full_get_segment_t1(p_ctx, i) * 10;
 			text = api.whisper_full_get_segment_text(p_ctx, i);
-			vad_segment(samples, cbs, i, index_offset, s, e, time_offset, text);
+			vad_segment(samples, cbs, v, i, index_offset, s, e, time_offset, text);
 		}
 		return api.whisper_full_lang_id(p_ctx);
 	}
